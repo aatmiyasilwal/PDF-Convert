@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { Header } from './components/main_page';
-import { Button } from '@blueprintjs/core';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd'; // Importing drag-and-drop components
+import { Button } from '@blueprintjs/core'; // Importing the Button component from Blueprint.js
 import { previewStyle } from './css_styles';
-import '@blueprintjs/core/lib/css/blueprint.css';
+import '@blueprintjs/core/lib/css/blueprint.css'; // Importing Blueprint.js CSS
 
 const App: React.FC = () => {
   const [filePreviews, setFilePreviews] = useState<{ type: string; data: string }[]>([]);
@@ -11,46 +10,61 @@ const App: React.FC = () => {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files) {
-      const fileArray = Array.from(files);
+      const fileArray = Array.from(files); // Convert FileList to an array
       const previews: { type: string; data: string }[] = [];
       fileArray.forEach(file => {
         const reader = new FileReader();
         reader.onloadend = () => {
           previews.push({ type: file.type, data: reader.result as string });
           if (previews.length === fileArray.length) {
-            setFilePreviews(prevPreviews => [...prevPreviews, ...previews]);
+            setFilePreviews(prevPreviews => [...prevPreviews, ...previews]); // Merge new previews with existing ones
           }
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(file); // Read the file as a data URL
       });
     }
   };
 
   const handleClear = () => {
-    setFilePreviews([]);
+    setFilePreviews([]); // Clear the previews
   };
 
-  const onDragEnd = (result: any) => {
-    if (!result.destination) return; // Exit if dropped outside any destination
+  const handleConvert = async () => {
+    if (filePreviews.length > 0) {
+      const file = filePreviews[0]; // Assuming you want to convert the first file
+      const formData = new FormData();
+      formData.append('file', file.data); // This needs to be a Blob or File object
 
-    const reorderedPreviews = Array.from(filePreviews);
-    const [movedPreview] = reorderedPreviews.splice(result.source.index, 1);
-    reorderedPreviews.splice(result.destination.index, 0, movedPreview);
+      const response = await fetch('http://localhost:5000/convert', {
+        method: 'POST',
+        body: formData,
+      });
 
-    setFilePreviews(reorderedPreviews); // Update state with new order
+      if (response.ok) {
+        const result = await response.json();
+        console.log("File converted successfully", result);
+        // Optionally handle success (e.g., show a notification)
+      } else {
+        const error = await response.json();
+        console.error("Error converting file:", error);
+        // Optionally handle error (e.g., show an error message)
+      }
+    } else {
+      console.log("No file selected for conversion");
+    }
   };
 
   return (
     <div>
       <Header />
-      <div style={{ textAlign: 'center', marginLeft: '35vw' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'row', textAlign: 'center', marginLeft: '25vw', width: '100%' }}>
         <input
           type="file"
           name="file"
           onChange={handleFileChange}
           multiple
-          accept=".pdf, .doc, .docx, image/*"
-          style={{ margin: '10px' }}
+          accept=".pdf, .doc, .docx, image/*" // Accept PDF, Word, and image files
+          style={{ margin: '10px' }} // Margin for spacing
         />
         <Button
           onClick={handleClear}
@@ -58,67 +72,42 @@ const App: React.FC = () => {
           style={{ marginLeft: '10px' }}
           text="Clear"
         />
+
       </div>
       {filePreviews.length > 0 && (
         <div>
           <h3 style={{ color: 'black' }}>File Previews:</h3>
-          <DragDropContext onDragEnd={onDragEnd}>
-            <Droppable droppableId="droppable">
-              {(provided) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  style={{
-                    ...previewStyle,
-                    width: '100%',
-                    height: '300px',
-                    overflowX: 'auto',
-                    overflowY: 'hidden',
-                    whiteSpace: 'nowrap',
-                    border: '1px solid #ccc',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  <div style={{ display: 'inline-flex' }}>
-                    {filePreviews.map((preview, index) => (
-                      <Draggable key={`draggable-${index}`} draggableId={`draggable-${index}`} index={index}>
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            style={{
-                              margin: '10px',
-                              ...provided.draggableProps.style // Include draggable style
-                            }}
-                          >
-                            {preview.type.startsWith('image/') ? (
-                              <img
-                                src={preview.data}
-                                alt={`preview-${index}`}
-                                style={{ width: '150px', height: '150px', objectFit: 'cover' }}
-                              />
-                            ) : preview.type === 'application/pdf' ? (
-                              <iframe
-                                src={preview.data}
-                                title={`preview-${index}`}
-                                style={{ width: '150px', height: '200px' }}
-                              />
-                            ) : (
-                              <div>Unsupported file type</div>
-                            )}
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder} {/* Placeholder for drag-and-drop */}
-                  </div>
+          <div style={previewStyle}>
+            <div style={{ display: 'inline-flex' }}> {/* Use inline-flex to align items horizontally */}
+              {filePreviews.map((preview, index) => (
+                <div key={index} style={{ margin: '10px' }}>
+                  {preview.type.startsWith('image/') ? (
+                    <img
+                      src={preview.data}
+                      alt={`preview-${index}`}
+                      style={{ width: '150px', height: '150px', objectFit: 'cover' }}
+                    />
+                  ) : preview.type === 'application/pdf' ? (
+                    <iframe
+                      src={preview.data}
+                      title={`preview-${index}`}
+                      style={{ width: '150px', height: '200px' }}
+                    />
+                  ) : (
+                    <div>Unsupported file type</div>
+                  )}
                 </div>
-              )}
-            </Droppable>
-          </DragDropContext>
+              ))}
+            </div>
+          </div>
         </div>
       )}
+      <Button
+        onClick={handleConvert}
+        intent="primary"
+        style={{ marginLeft: '47vw', bottom: '10vh', position: 'fixed', }}
+        text="Convert"
+      />
     </div>
   );
 };
